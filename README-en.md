@@ -54,7 +54,11 @@ Only the first five entries are read. `title` is required; other fields are opti
 
 **保持显示** (keep display on) is enabled by default and prevents automatic screen saver and automatic suspend while the dashboard is open. Turning it off or returning to reading restores the previous keep-awake state. The power button still allows manual sleep, which pauses refreshes; waking restores the saved preference. On Kindle, this uses the native screen saver timer to preserve manual sleep.
 
-**前光亮度** opens KOReader's native frontlight panel, with a slider, plus/minus buttons, minimum, maximum, and an on/off switch. Changes take effect immediately and remain in effect when returning to reading. Display retention does not turn on the frontlight; keeping the device running and increasing brightness both use more battery. [View settings](dashboard-settings.png).
+**前光亮度** opens KOReader's native frontlight panel, with a slider, plus/minus buttons, minimum, maximum, and an on/off switch. Changes take effect immediately and remain in effect when returning to reading. Display retention does not turn on the frontlight; keeping the device running and increasing brightness both use more battery.
+
+![Dashboard settings on the device](dashboard-settings.png)
+
+![Frontlight brightness controls on the device](dashboard-frontlight.png)
 
 The dashboard attempts a refresh when opened, then waits 300 seconds after each refresh completes before the next one. Automatic refresh does not turn on disconnected Wi-Fi; manual refresh can invoke KOReader's network connection flow. Requests run in a cancellable subprocess, and a tap can cancel the wait. Failed sources retain their available cached data, original timestamps, and stale indicators. A first launch without cached data shows empty fields. The clock and calendar continue locally while offline.
 
