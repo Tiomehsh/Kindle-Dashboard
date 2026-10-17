@@ -79,6 +79,8 @@ After installation, confirm the menu entry appears, then check all four panels, 
 
 Device checks include searching for “杭州”, selecting Hangzhou in Zhejiang, and tapping settings and return while a refresh is active. Settings dialogs appear above the dashboard. Cancelled refreshes repaint widgets before replaying button taps, preventing lost taps and touch-feedback errors. Display retention checks cover preference persistence, repeated open/close, restoration of previous keep-awake states, and manual sleep and resume. Frontlight checks cover the slider, plus/minus buttons, and switch, with actual hardware brightness readings. Portrait and landscape checks cover panel alignment without gaps, larger text, and settings/frontlight dialogs staying within the screen. All seven weather icons were checked through native SVG rendering on the Kindle.
 
+If closing a book re-enables night mode, open KOReader’s native **Settings → Screen → Auto night mode → Activate** and select the checked activation method again to turn automatic switching off. On the PW3, which has no warmth control, AutoWarmth forces its night mode control back on when a reader or file browser is recreated; disabling only “Control night mode” does not survive that transition. Moon’s automatic night mode is a separate setting.
+
 KUAL launch output is written to `/tmp/kindle-dashboard-launch.log`. For plugin loading or runtime errors, inspect KOReader’s `crash.log`. Public API availability, rate limits, and regional connectivity can affect refreshes.
 
 This project is licensed under the MIT License.
