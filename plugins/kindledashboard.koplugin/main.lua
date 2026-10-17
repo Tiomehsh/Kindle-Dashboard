@@ -8,6 +8,7 @@ local InputDialog = require("ui/widget/inputdialog")
 local LuaSettings = require("luasettings")
 local JSON = require("json")
 local NetworkMgr = require("ui/network/manager")
+local PluginShare = require("pluginshare")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
@@ -72,10 +73,12 @@ function KindleDashboard:init()
     self.config = Market.defaultConfig()
     self.config.weather = self.settings:readSetting("weather", Sources.defaultWeather())
     self.config.news_external_url = self.settings:readSetting("news_external_url", "")
+    self.keep_display_on = self.settings:readSetting("keep_display_on", true)
     self.cache_path = DataStorage:getSettingsDir() .. "/kindledashboard-cache.json"
     self.bundled_holidays = Calendar.loadBundled()
     self.snapshot = readCache(self.cache_path, self.config) or {entries={}}
     self.refresh_task = function() self:refresh(false) end
+    self.keep_awake_task = function() self:refreshKeepAwake() end
     self.clock_task = function()
         self:updateClock()
         self:scheduleClock()
@@ -119,11 +122,66 @@ function KindleDashboard:onKindleDashboard()
         on_rotate = function() self:rotateDashboard() end,
         on_settings = function() self:showSettings() end,
     }
-    UIManager:preventStandby()
-    self.standby_prevented = true
     UIManager:show(self.dashboard)
+    self:setKeepAwake(self.keep_display_on)
     self:scheduleClock()
     UIManager:nextTick(function() self:refresh(true) end)
+    return true
+end
+
+function KindleDashboard:setKeepAwake(enabled)
+    if enabled == (self.keep_awake_state ~= nil) then return true end
+    local state = self.keep_awake_state or {
+        pause_auto_suspend = PluginShare.pause_auto_suspend,
+        keepalive = PluginShare.keepalive,
+    }
+    if Device:isKindle() then
+        -- Own the T1 reset schedule while AutoSuspend's automatic sleep is paused.
+        PluginShare.keepalive = enabled and true or state.keepalive
+    end
+    PluginShare.pause_auto_suspend = enabled and true or state.pause_auto_suspend
+    if enabled then
+        self.keep_awake_state = state
+        UIManager:preventStandby()
+        return self:refreshKeepAwake()
+    else
+        UIManager:unschedule(self.keep_awake_task)
+        self.keep_awake_state = nil
+        UIManager:allowStandby()
+        -- AutoSuspend stops its T1 task while keepalive is true.
+        local autosuspend = self.ui.autosuspend
+        if Device:isKindle() and state.prevent_screen_saver == 0 and autosuspend
+                and not self.suspended and not PluginShare.keepalive then
+            UIManager:unschedule(autosuspend.kindle_task)
+            local ok, err = pcall(autosuspend._start_kindle, autosuspend)
+            if not ok then logger.warn("KindleDashboard: sleep timer restoration failed", err) end
+        end
+    end
+    return true
+end
+
+function KindleDashboard:refreshKeepAwake()
+    UIManager:unschedule(self.keep_awake_task)
+    local state = self.keep_awake_state
+    if not state or self.suspended or not Device:isKindle() then return true end
+    local ok, native = pcall(function()
+        local powerd = Device:getPowerDevice()
+        local handle = assert(powerd.lipc_handle, "Kindle power control unavailable")
+        local prevented = handle:get_int_property("com.lab126.powerd", "preventScreenSaver")
+        assert(type(prevented) == "number", "Cannot read screen saver state")
+        -- Never reset T1 when another owner inhibits screen saver: powerd can crash.
+        if prevented == 0 then powerd:resetT1Timeout() end
+        return prevented
+    end)
+    if not ok then
+        self:setKeepAwake(false)
+        logger.warn("KindleDashboard: keep-awake timer failed", native)
+        UIManager:show(InfoMessage:new{text = "无法启用保持显示，请查看 KOReader 日志。"})
+        return false
+    end
+    if state.prevent_screen_saver == nil then state.prevent_screen_saver = native end
+    -- Same four-minute interval as AutoSuspend, below Kindle's minimum T1 timeout.
+    UIManager:scheduleIn(240, self.keep_awake_task)
     return true
 end
 
@@ -171,6 +229,20 @@ function KindleDashboard:showSettings()
     dialog = ButtonDialog:new{
         title = "仪表盘设置",
         buttons = {
+            {{text = "保持显示：" .. (self.keep_awake_state and "开启" or "关闭"), callback = function()
+                local enabled = self.keep_awake_state == nil
+                UIManager:close(dialog)
+                if self:setKeepAwake(enabled) then
+                    self.keep_display_on = enabled
+                    self.settings:saveSetting("keep_display_on", enabled)
+                    self.settings:flush()
+                    self:showSettings()
+                end
+            end}},
+            {{text = "前光亮度", enabled = Device:hasFrontlight(), callback = function()
+                UIManager:close(dialog)
+                UIManager:show(require("ui/widget/frontlightwidget"):new{})
+            end}},
             {{text = "天气城市：" .. self.config.weather.city_name, callback = function()
                 UIManager:close(dialog)
                 self:searchCity()
@@ -337,16 +409,13 @@ function KindleDashboard:setRotation(mode)
 end
 
 function KindleDashboard:closeDashboard()
+    self:setKeepAwake(false)
     local dashboard = self.dashboard
     if not dashboard then return end
     self.dashboard = nil
     UIManager:unschedule(self.refresh_task)
     UIManager:unschedule(self.clock_task)
     UIManager:close(dashboard)
-    if self.standby_prevented then
-        self.standby_prevented = nil
-        UIManager:allowStandby()
-    end
     self:setRotation(self.original_rotation)
     -- Moon's desktop is a separate window outside FileManager's resize tree.
     local moon_desktop = self.ui.book and self.ui.book.desktop
@@ -357,6 +426,7 @@ end
 
 function KindleDashboard:onSuspend()
     self.suspended = true
+    self:setKeepAwake(false)
     UIManager:unschedule(self.refresh_task)
     UIManager:unschedule(self.clock_task)
 end
@@ -364,6 +434,7 @@ end
 function KindleDashboard:onResume()
     self.suspended = false
     if self.dashboard then
+        self:setKeepAwake(self.keep_display_on)
         self:updateClock()
         self:scheduleClock()
         UIManager:nextTick(function() self:refresh(false) end)

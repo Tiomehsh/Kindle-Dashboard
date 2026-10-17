@@ -453,7 +453,7 @@ function Dashboard:_rebuild()
     local button_y = grid_h + note_h + self:_px(12)
     root:add(button(self.refreshing and "刷新中…" or "刷新数据", function() self:onRefresh() end,
         not self.refreshing), 0, button_y)
-    root:add(button("设置城市", function() self:onSettings() end), button_w + button_gap, button_y)
+    root:add(button("仪表盘设置", function() self:onSettings() end), button_w + button_gap, button_y)
     root:add(button("旋转屏幕", function() self:onRotate() end), (button_w + button_gap) * 2, button_y)
     root:add(button("返回阅读", function() self:onClose() end), (button_w + button_gap) * 3, button_y)
     self._root = root
