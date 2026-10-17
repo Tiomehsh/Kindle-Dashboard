@@ -1,30 +1,22 @@
 #!/bin/sh
+set -eu
 
-LOG="/tmp/dashboard.log"
-echo "========================================" > "$LOG"
-echo "[Boot-1] Triggered at $(date)" >> "$LOG"
+KOREADER_DIR="${KOREADER_DIR:-/mnt/us/koreader}"
+REQUEST="/tmp/kindle-dashboard-open"
+LOG="/tmp/kindle-dashboard-launch.log"
 
-BASE_DIR="/mnt/us/extensions/Kindle-Dashboard"
-DAEMON="$BASE_DIR/bin/run_daemon.sh"
-
-if [ ! -f "$DAEMON" ]; then
-    echo "[Boot-Error] Daemon script not found!" >> "$LOG"
+if [ ! -x "$KOREADER_DIR/luajit" ] || [ ! -f "$KOREADER_DIR/plugins/kindledashboard.koplugin/main.lua" ]; then
+    echo "Install KOReader and the kindledashboard plugin first." >&2
     exit 1
 fi
 
-echo "[Boot-2] Preparing to detach..." >> "$LOG"
+if pidof luajit reader.lua >/dev/null 2>&1; then
+    echo "KOReader is running. Open More tools > 阅读仪表盘 inside KOReader." >&2
+    exit 1
+fi
 
-# 双重 Fork 结构
+: > "$REQUEST"
 (
-    (
-        echo "[Boot-3] Child process waiting 5s for UI release..." >> "$LOG"
-        sleep 5
-        
-        echo "[Boot-4] Launching daemon: $DAEMON" >> "$LOG"
-        # 使用 exec 替换当前 shell，节省资源
-        exec /bin/sh "$DAEMON" >> "$LOG" 2>&1
-    ) &
-)
-
-echo "[Boot-5] Parent exiting immediately." >> "$LOG"
-exit 0
+    sleep 1
+    exec /bin/sh "$KOREADER_DIR/koreader.sh" --kual
+) > "$LOG" 2>&1 < /dev/null &

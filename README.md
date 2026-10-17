@@ -2,122 +2,73 @@
 
 [English](README-en.md)
 
-一个简单的 KUAL 插件，能够将你的越狱版 Kindle 变成一个低功耗的电子墨水仪表盘。它会定期自动从指定的 URL 下载图片并显示在屏幕上。
+运行在 KOReader 内的 Kindle 原生阅读仪表盘。界面由 KOReader 的 Lua 控件直接绘制，Kindle 直接通过 HTTPS 获取公开数据，无需自建服务器或 API Key。界面目前以中文为主。
 
-![Real Shot](demo_shot.avif)
+![Paperwhite 3 真机截图](screenshot.png)
 
-## ✨ 功能特点
+## 面板与数据
 
-*   **独占模式**：自动关闭 Kindle 原生 Framework，防止原生界面干扰或进入休眠，完全接管屏幕控制权。
-*   **自动联网**：每次更新前强制唤醒 WiFi，确保图片能够成功下载。
-*   **定时刷新**：可自定义刷新间隔（默认 1 小时）。
-*   **高质量渲染**：集成 [FBInk](https://github.com/NiLuJe/FBInk)，支持高质量波形刷新 (GC16)，减少残影。
-*   **错误处理**：如果网络请求失败，会在屏幕上显示错误提示，而不是黑屏或卡死。
-*   **本地时钟叠加**：支持在图片上方叠加显示当前时间，每分钟自动局部刷新，无需联网。
-*   **智能休眠**：脚本会自动对齐系统时间，在每分钟的 00 秒唤醒刷新时钟，最大程度节省电量。
-*   **图片预处理工具**：附带 Python 脚本，用于将普通图片转换为最适合 Kindle 显示的 16 级灰度抖动图像。
+- **日历与时钟**：公历、星期、农历（数据范围 1900—2100 年）、干支生肖、年度进度、中国工作日/休息日及下一次切换倒计时。时钟与日历使用固定 UTC+8，每分钟本地更新，不依赖网络。
+- **天气与空气质量**：默认新加坡，可搜索中英文城市。显示温度、天气、湿度、UV、降水概率、最高/最低温、雨雪时段提示、三个后续时段预报和明日预报。数据来自 [Open-Meteo](https://open-meteo.com/)，空气质量来自其 CAMS 数据，面板使用 **US AQI**，不是中国 AQI。预报时段及“今天/明天”按所选城市时区计算；来源时间显示为 UTC+8。第三个预报时段会结合默认 10:00/18:00 工作时段选择。
+- **行情**：通过新浪财经获取纳斯达克综合指数 `gb_ixic`、纽约黄金 CFD `hf_GC`、标普 500 指数 `gb_inx`。黄金单位为美元/金衡盎司，**该数据源标的是 CFD，并非 COMEX 近月期货或现货黄金**。展示报价、相对来源前收盘价的日变动及分时走势。美股指数走势来自五分钟数据，黄金走势来自分钟数据；缺失数据不补值，较长间隔保留为空缺。
+- **Hacker News**：优先从 [官方 Firebase API](https://github.com/HackerNews/API) 的 top/best 列表获取新闻；列表不可用、无效或条目获取不完整时，改用 [Algolia 镜像](https://hn.algolia.com/api)。镜像分别取 front_page 和最近七天高分故事的前十个候选，沿用热度、时间、评论和标题关键词排序、去重及热点突出规则，最多展示五条。镜像的高分故事列表不保证与 Firebase best 排序一致，面板会标注 `Hacker News / Algolia 镜像`。保留原始标题、分数、时间和链接，不提供翻译或 AI 摘要；两种来源均失败时保留旧新闻及原抓取时间。也可设置自定义 HTTPS JSON 新闻源。
 
-## 🖥️ 配套服务端
+行情来源为[新浪财经](https://finance.sina.com.cn/)，Kindle 直接获取报价和走势，无需代理。报价可能延迟，休市时可能仍显示上一交易时段的数据。美股走势来源时间按纽约时区解析，黄金分时来源时间按 UTC+8 解析，界面统一显示 UTC+8。行情和天气标注来源观测时间，新闻标注抓取时间；联网成功不代表数据刚刚产生。缺少数值或时间时显示空缺/`--`，不会用示例值填充。
 
-为了充分发挥本插件的潜力，建议配合专门开发的 **Kindle Dashboard Server** 使用：
+中国节假日随包提供 2026 年安排，数据来自 [NateScarlet/holiday-cn](https://github.com/NateScarlet/holiday-cn)。切换到未缓存年份时会尝试下载当年安排，失败后至多每天重试一次。未取得对应年度数据时，仅以周末规则估算，并标记“节假日估算”；调休与法定假期不能据此保证准确，跨年的倒计时也可能涉及估算。
 
-*   **项目地址**: [https://github.com/t0saki/Kindle-Dashboard-Server](https://github.com/t0saki/Kindle-Dashboard-Server)
-*   **功能**:
-    *   **专为 Kindle 优化**: 渲染 1680x1264 高分辨率、16级灰度抖动图像，完美适配 E-ink 屏。
-    *   **丰富数据**: 集成天气、空气质量、日历、股票/加密货币走势、Hacker News 等信息。
-    *   **高度定制**: 支持多语言、全球天气、自定义布局。
-    *   **易于部署**: 支持 Docker 一键部署。
+## 安装
 
-## �🛠️ 前置要求
+需要已越狱 Kindle 和已安装的 KOReader。使用 KUAL 入口还需安装 KUAL；Moon 是可选项。已在 Paperwhite 3、KOReader 2026.07.2、Moon 0.2.10 上验证四个面板显示、真实报价与曲线、城市搜索与选择，以及刷新期间打开设置和返回后的方向恢复。
 
-1.  **Kindle 已越狱**。
-2.  已安装 **KUAL** (Kindle Unified Application Launcher)。
-3.  (可选) 已安装 MRPI (MobileRead Package Installer) 以便管理提取。
+通过 USB 复制以下两个目录，合并目标目录，不要替换整个 KOReader 安装：
 
-## 📥 安装步骤
-
-1.  将本项目中的 `extensions` 文件夹复制到你的 Kindle 根目录。
-    *   如果提示合并，请选择确认。
-    *   最终路径结构应为：`Kindle磁盘根目录/extensions/Kindle-Dashboard/...`
-2.  断开 USB 连接。
-
-## ⚙️ 配置方法
-
-默认配置位于 `extensions/Kindle-Dashboard/bin/run_daemon.sh` 文件中。你需要修改以下变量：
-
-```bash
-# 图片地址 (请修改为你服务端的实际地址)
-IMG_URL="https://your-server.com/dashboard.png"
-
-# 图片刷新间隔 (秒)
-INTERVAL=300
-
-# 全刷周期 (多少次局刷后执行一次全刷以清除残影)
-FULL_REFRESH_CYCLE=12
-
-# 屏幕旋转 (0=0°, 1=90°, 2=180°, 3=270°)
-ROTATE=3
-
-# =============== 本地时钟配置 ===============
-# 是否开启本地时钟 (1=开启, 0=关闭)
-ENABLE_LOCAL_CLOCK=1
-
-# 时钟位置 (坐标取决于你的屏幕方向和分辨率)
-CLOCK_X=300
-CLOCK_Y=100
-CLOCK_SIZE=80
-
-# 字体路径 (可选，留空则使用 fbink 默认字体)
-# CLOCK_FONT="${BASE_DIR}/IBMPlexMono-SemiBold.ttf"
+```text
+plugins/kindledashboard.koplugin → Kindle 根目录/koreader/plugins/kindledashboard.koplugin
+extensions/Kindle-Dashboard    → Kindle 根目录/extensions/Kindle-Dashboard
 ```
 
-**建议**：请确保你的服务端生成的图片分辨率与你的 Kindle 屏幕分辨率一致（例如 Kindle Oasis 2/3 为 1264x1680），以获得最佳显示效果。
+安全弹出设备后重启 KOReader 一次。KUAL 启动脚本 `extensions/Kindle-Dashboard/bin/boot.sh` 需要可执行权限。
 
-## 🚀 使用方法
+也可在已配置 SSH 密钥登录的电脑上，从仓库目录运行：
 
-1.  在 Kindle 上打开 **KUAL**。
-2.  点击 **Kindle-Dashboard** 菜单。
-3.  点击 **Start Dashboard (No GUI)**。
-4.  此时 Kindle 的原生界面将会消失，屏幕将开始刷新你的仪表盘图片。
-
-> **⚠️ 注意**：启动时，屏幕可能会多次闪烁，并可能出现一些临时的报错信息（脚本正在清理后台进程）。这是正常现象，请耐心等待约 **1 分钟** 让服务完全启动。
-
-**已验证设备**：本项目已在 **Kindle Oasis 2** 和 **Kindle Paperwhite 3** 上通过测试。请注意 **Kindle Paperwhite 3** 旋转参数不同，2为横屏。
-
-**如何退出？**
-由于脚本杀死了原生 Framework (`stop framework`)，你需要**长按 Kindle 电源键**重启设备才能恢复到正常的阅读模式。
-
-## 🖼️ 图片转换工具
-
-为了在 E-Ink 屏幕上获得最佳显示效果（避免严重的色阶断层），建议使用本仓库提供的 `convert_kindle_image.py` 脚本处理你的图片。
-
-该脚本会自动执行：
-1.  调整大小至目标分辨率 (默认 1264x1680)。
-2.  转换为 16 级灰度。
-3.  应用 Floyd-Steinberg 抖动算法。
-
-**依赖安装：**
-```bash
-pip install pillow
+```sh
+sh scripts/deploy.sh KINDLE_IP
+# 可选：SSH 端口（默认 2222）、私钥路径
+sh scripts/deploy.sh KINDLE_IP 2222 ~/.ssh/id_ed25519
 ```
 
-**使用示例：**
-```bash
-python convert_kindle_image.py your_image.png
-# 输出文件将命名为: your_image_k_fixed.png
+脚本以 `root` 登录，检查 `/mnt/us/koreader`，复制插件与 KUAL 入口并设置启动权限；不会安装 KOReader。可用 `DASHBOARD_SSH_KNOWN_HOSTS` 指定 known_hosts 文件。部署后仍需重启 KOReader。
+
+## 使用与设置
+
+在 KOReader 中打开 **More tools（更多工具） > 阅读仪表盘**。安装 Moon 且其公开 `desktop.tabs` 扩展点可用时，桌面还会显示 **仪表盘** 标签。也可从 KUAL 的 **Kindle-Dashboard > Open Dashboard** 启动 KOReader 并自动打开仪表盘；若 KOReader 已运行，请使用其内部菜单。
+
+底部按钮提供 **刷新数据**、**设置城市**、**旋转屏幕** 和 **返回阅读**。“设置城市”会打开设置对话框，可选择城市或修改新闻源；城市搜索无结果时可尝试英文名称。自定义新闻地址必须为 HTTPS，留空恢复 Hacker News，响应为 JSON 数组，例如：
+
+```json
+[{"title":"新闻标题","meta":"来源说明","url":"https://example.com/story","time":1792195200}]
 ```
 
-## 📜 鸣谢 & 声明
+最多读取前五项；`title` 必填，其他字段可选，`time` 为 Unix 秒。
 
-*   **FBInk**: 本项目使用了 `FBInk` 工具用于屏幕刷新。
-    *   文件路径: `extensions/Kindle-Dashboard/bin/fbink`
-    *   该二进制文件编译自: [https://github.com/NiLuJe/FBInk](https://github.com/NiLuJe/FBInk)
-    *   感谢 **NiLuJe** 开发了这个强大的 E-Ink 屏幕控制库。
+打开时会尝试刷新，此后每轮完成后等待 300 秒再刷新。自动刷新不会主动打开断开的 Wi-Fi；手动刷新可进入 KOReader 的联网流程。网络请求在可取消的子进程中进行，轻触可取消等待。各数据源失败时尽量保留相应缓存、原始时间和旧数据标记；首次使用且无缓存时显示空缺。离线时本地时钟与日历仍可工作。仪表盘打开期间阻止自动待机；手动休眠会暂停刷新，唤醒后恢复。
 
-## ⚠️ 免责声明
+旋转使用 KOReader 原生屏幕方向接口，不需要填写机型旋转编号。点击“返回阅读”关闭仪表盘，恢复进入前的方向和阅读器/文件管理器；Moon 桌面会按恢复后的方向重新布局，无需重启设备。
 
-本项目需要越狱设备并修改系统进程。虽然一般来说是安全的，但请自行承担修改系统带来的风险。作者不对设备损坏负责。
+设置与缓存位于 KOReader 的设置目录（通常为 `/mnt/us/koreader/settings/`）：
 
-## 📄 许可证
+- `kindledashboard.lua`：天气城市、坐标、时区与自定义新闻地址。
+- `kindledashboard-cache.json`：最近数据快照，重启后先作为旧数据展示。
 
-本项目采用 MIT License 许可证。其中FBInk的许可证请参考 [FBInk](https://github.com/NiLuJe/FBInk)。
+刷新周期和三个行情标的当前在插件 `market.lua` 的默认配置中定义，设置界面未提供对应选项。
+
+## 验证与排查
+
+安装后确认菜单入口可见，再检查四个面板、城市切换、手动与自动刷新、断网保留旧数据、横竖屏切换及返回阅读后的方向恢复。使用 Moon 时也应检查桌面标签入口。查看来源时间和旧数据标记，避免把缓存误认为实时数据。
+
+真机验证覆盖了中文搜索“杭州”、选择“杭州 · 浙江 · 中国”，以及刷新期间点击“设置城市”和“返回阅读”。设置弹窗显示在仪表盘上方；取消刷新后先完成控件重绘，再处理按钮点击，避免点击丢失或触摸反馈错误。
+
+KUAL 启动日志位于 `/tmp/kindle-dashboard-launch.log`；插件加载或运行问题可查看 KOReader 的 `crash.log`。公共数据接口的可用性、限流和地区网络访问会影响刷新结果。
+
+本项目采用 MIT 许可证。

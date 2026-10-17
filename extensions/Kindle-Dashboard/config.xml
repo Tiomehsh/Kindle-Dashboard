@@ -2,8 +2,8 @@
 <extension>
 	<information>
 		<name>Kindle-Dashboard</name>
-		<version>1.0</version>
-		<author>tosaki</author>
+		<version>2.0.0</version>
+		<author>Tiomehsh; original project by tosaki</author>
 		<id>Kindle-Dashboard</id>
 	</information>
 	<menus>

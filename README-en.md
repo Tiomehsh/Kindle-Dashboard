@@ -2,121 +2,73 @@
 
 [中文](README.md)
 
-A simple KUAL extension that turns your jailbroken Kindle into a low-power e-ink dashboard. It periodically downloads an image from a specified URL and displays it on the screen.
+A native Kindle dashboard inside KOReader. KOReader Lua widgets render the interface, and the Kindle fetches public data directly over HTTPS. No self-hosted server or API key is required. The interface is currently primarily Chinese.
 
-![Real Shot](demo_shot.avif)
+![Paperwhite 3 device screenshot](screenshot.png)
 
-## ✨ Features
+## Panels and sources
 
-*   **Exclusive Mode**: Automatically stops the native Kindle Framework to prevent interface interference or sleep mode, taking full control of the screen.
-*   **Auto Connectivity**: Forces WiFi to wake up before each update to ensure successful image downloads.
-*   **Scheduled Refresh**: Configurable refresh interval (default is 1 hour).
-*   **High-Quality Rendering**: Integrates [FBInk](https://github.com/NiLuJe/FBInk) supporting high-quality waveform refresh (GC16) to minimize ghosting.
-*   **Error Handling**: Displays an onscreen error message if the network request fails, rather than staying black or freezing.
-*   **Local Clock Overlay**: Overlays the current time on top of the image, updating every minute with a partial refresh (no WiFi needed).
-*   **Smart Sleep**: Automatically aligns with the system clock to wake up exactly at the 00th second of every minute, maximizing battery life.
-*   **Image Processing Tool**: Includes a Python script to convert standard images into 16-level grayscale dithered images optimized for Kindle displays.
+- **Calendar and clock**: Gregorian date, weekday, Chinese lunar date (data covers 1900–2100), sexagenary year and zodiac, year progress, Chinese working/rest days, and a countdown to the next change. The clock and calendar use fixed UTC+8 and update locally every minute without network access.
+- **Weather and air quality**: Singapore by default, with Chinese or English city search. Displays temperature, conditions, humidity, UV, precipitation probability, daily high/low, rain/snow timing hints, three upcoming forecast slots, and tomorrow’s forecast. Weather comes from [Open-Meteo](https://open-meteo.com/); air quality uses its CAMS data and **US AQI**, rather than China’s AQI scale. Forecast slots and “today/tomorrow” follow the selected city’s timezone; source timestamps are displayed in UTC+8. The third forecast slot takes the default 10:00/18:00 work hours into account.
+- **Markets**: Sina Finance supplies the NASDAQ Composite `gb_ixic`, New York gold CFD `hf_GC`, and S&P 500 `gb_inx`. Gold is quoted in USD per troy ounce; **this source identifies the instrument as a CFD, rather than COMEX front-month futures or spot gold**. Each row shows the quote, daily change against the source’s previous close, and an intraday trend. US index history uses five-minute data; gold history uses minute data. Missing values are not interpolated, and longer gaps remain disconnected.
+- **Hacker News**: Tries the [official Firebase API](https://github.com/HackerNews/API) top/best lists first. Unavailable or invalid lists, or incomplete story retrieval, trigger the [Algolia mirror](https://hn.algolia.com/api). The mirror takes ten candidates each from front_page and high-scoring stories from the last seven days, applying the same popularity, age, comment, title-keyword, deduplication, and trending-story rules to select up to five stories. Its high-score list is not guaranteed to match Firebase best ordering. The panel identifies it as `Hacker News / Algolia 镜像`. Original titles, scores, timestamps, and URLs are preserved, without translation or AI summaries. If both sources fail, previous headlines and their original fetch time are retained. An optional custom HTTPS JSON news feed is supported.
 
-## 🖥️ Server Companion
+[Sina Finance](https://finance.sina.com.cn/) quotes and history are fetched directly by the Kindle, without a proxy. Quotes may be delayed and may remain at the previous trading session during market closures. US index history timestamps are interpreted in New York time, and gold history timestamps in UTC+8; the interface displays them in UTC+8. Markets and weather show source observation times; news shows its fetch time. A successful request does not mean the underlying observation is new. Missing values or timestamps remain empty/`--`, rather than being replaced with sample data.
 
-To unlock the full potential of this extension, it is highly recommended to use it with the dedicated **Kindle Dashboard Server**:
+Chinese holiday arrangements for 2026 are bundled from [NateScarlet/holiday-cn](https://github.com/NateScarlet/holiday-cn). When the current year is not cached, the plugin attempts to download that year’s arrangements, retrying at most daily after failure. Without matching annual data, it uses weekend rules and marks the result “节假日估算” (estimated holidays). Statutory holidays and compensatory working days are unavailable in that case; countdowns crossing into another year may also involve estimates.
 
-*   **Repository**: [https://github.com/t0saki/Kindle-Dashboard-Server](https://github.com/t0saki/Kindle-Dashboard-Server)
-*   **Features**:
-    *   **Optimized for Kindle**: Renders 1680x1264 high-res, 16-level grayscale dithered images perfect for E-ink screens.
-    *   **Rich Data**: Integrates weather, AQI, calendar, stocks/crypto trends, Hacker News, and more.
-    *   **Highly Customizable**: Supports multi-language, global weather, and custom layouts.
-    *   **Easy Deployment**: Supports one-click Docker deployment.
+## Installation
 
-## 🛠️ Prerequisites
+Requires a jailbroken Kindle with KOReader installed. KUAL is needed for the KUAL entry; Moon is optional. Device validation on a Paperwhite 3 with KOReader 2026.07.2 and Moon 0.2.10 covers all four panels, real quotes and trends, city search and selection, opening settings during refresh, and restoring the previous orientation on return.
 
-1.  **Jailbroken Kindle**.
-2.  **KUAL** (Kindle Unified Application Launcher) installed.
+Copy these directories over USB, merging destination directories without replacing the entire KOReader installation:
 
-## 📥 Installation
-
-1.  Copy the `extensions` folder from this project to the root directory of your Kindle.
-    *   Merge folders if prompted.
-    *   The final path structure should be: `Kindle_Root_Drive/extensions/Kindle-Dashboard/...`
-2.  Eject/Disconnect the USB cable.
-
-## ⚙️ Configuration
-
-The default configuration is located in `extensions/Kindle-Dashboard/bin/run_daemon.sh`. You need to modify the following variables:
-
-```bash
-# Image URL (Change this to your actual server address)
-IMG_URL="https://your-server.com/dashboard.png"
-
-# Image Refresh Interval (seconds)
-INTERVAL=300
-
-# Full Refresh Cycle (Perform a full refresh after every N partial refreshes to clear ghosting)
-FULL_REFRESH_CYCLE=12
-
-# Screen Rotation (0=0°, 1=90°, 2=180°, 3=270°)
-ROTATE=3
-
-# =============== Local Clock Configuration ===============
-# Enable Local Clock (1=Enable, 0=Disable)
-ENABLE_LOCAL_CLOCK=1
-
-# Clock Position (Coordinates depend on your screen orientation and resolution)
-CLOCK_X=300
-CLOCK_Y=100
-CLOCK_SIZE=80
-
-# Font Path (Optional, leave empty to use fbink default font)
-# CLOCK_FONT="${BASE_DIR}/IBMPlexMono-SemiBold.ttf"
+```text
+plugins/kindledashboard.koplugin → Kindle root/koreader/plugins/kindledashboard.koplugin
+extensions/Kindle-Dashboard    → Kindle root/extensions/Kindle-Dashboard
 ```
 
-**Tip**: Ensure the image generated by your server matches your Kindle's screen resolution (e.g., 1264x1680 for Kindle Oasis 2/3) for the best display results.
+Safely eject the device and restart KOReader once. The KUAL launcher `extensions/Kindle-Dashboard/bin/boot.sh` must be executable.
 
-## 🚀 Usage
+Alternatively, from a computer with SSH key login configured, run from the repository:
 
-1.  Open **KUAL** on your Kindle.
-2.  Tap on the **Kindle-Dashboard** menu.
-3.  Tap **Start Dashboard (No GUI)**.
-4.  The native Kindle interface will disappear, and the screen will start refreshing with your dashboard image.
-
-> **⚠️ Note**: During startup, the screen may flash multiple times, and you might see some temporary error messages (the script is cleaning up background processes). This is normal behavior. Please wait for about **1 minute** for the service to fully start.
-
-**Verified Device**: This project has been tested on **Kindle Oasis 2** and **Kindle Paperwhite 3**. Please note that **Kindle Paperwhite 3** has different rotation parameters, 2 is landscape.
-
-**How to Exit?**
-Since the script kills the native Framework (`stop framework`), you need to **long-press the Kindle power button** to restart the device and restore normal reading mode.
-
-## 🖼️ Image Conversion Tool
-
-To achieve the best display quality on E-Ink screens (avoiding severe banding), it is recommended to use the provided `convert_kindle_image.py` script to process your images.
-
-This script automatically:
-1.  Resizes the image to target resolution (default 1264x1680).
-2.  Converts distinct colors to 16-level grayscale.
-3.  Applies Floyd-Steinberg dithering.
-
-**Install Dependencies:**
-```bash
-pip install pillow
+```sh
+sh scripts/deploy.sh KINDLE_IP
+# Optional SSH port (default 2222) and private key
+sh scripts/deploy.sh KINDLE_IP 2222 ~/.ssh/id_ed25519
 ```
 
-**Usage:**
-```bash
-python convert_kindle_image.py your_image.png
-# Output file will be named: your_image_k_fixed.png
+The script connects as `root`, checks `/mnt/us/koreader`, copies the plugin and KUAL entry, and sets launcher permissions. It does not install KOReader. Set `DASHBOARD_SSH_KNOWN_HOSTS` to use a specific known_hosts file. Restart KOReader after deployment.
+
+## Usage and settings
+
+In KOReader, open **More tools > 阅读仪表盘**. When Moon is installed and its public `desktop.tabs` extension point is available, its desktop also offers an **仪表盘** tab. From KUAL, **Kindle-Dashboard > Open Dashboard** launches KOReader and opens the dashboard automatically. If KOReader is already running, use its internal menu.
+
+The bottom buttons are **刷新数据** (refresh), **设置城市** (settings), **旋转屏幕** (rotate), and **返回阅读** (return to reading). The settings dialog lets you select a weather city or change the news feed. Try an English city name if Chinese search returns no results. Custom news URLs must use HTTPS; leave the field empty to restore Hacker News. The response is a JSON array, for example:
+
+```json
+[{"title":"Story title","meta":"Source description","url":"https://example.com/story","time":1792195200}]
 ```
 
-## 📜 Credits & Acknowledgments
+Only the first five entries are read. `title` is required; other fields are optional, and `time` is Unix seconds.
 
-*   **FBInk**: This project uses the `FBInk` tool for screen refreshing.
-    *   File path: `extensions/Kindle-Dashboard/bin/fbink`
-    *   This binary is compiled from: [https://github.com/NiLuJe/FBInk](https://github.com/NiLuJe/FBInk)
-    *   Special thanks to **NiLuJe** for developing this powerful E-Ink screen control library.
+The dashboard attempts a refresh when opened, then waits 300 seconds after each refresh completes before the next one. Automatic refresh does not turn on disconnected Wi-Fi; manual refresh can invoke KOReader’s network connection flow. Requests run in a cancellable subprocess, and a tap can cancel the wait. Failed sources retain their available cached data, original timestamps, and stale indicators. A first launch without cached data shows empty fields. The clock and calendar continue locally while offline. The open dashboard prevents automatic standby; manual suspend pauses refreshes, and resume restarts them.
 
-## ⚠️ Disclaimer
+Rotation uses KOReader’s native screen orientation interface, with no device-specific rotation number to configure. “返回阅读” closes the dashboard, restores the previous orientation, and returns to the reader or file manager. Moon’s desktop reflows for the restored orientation without a device reboot.
 
-This project requires a jailbroken device and modifies system processes. While generally safe, please modify your system at your own risk. The author is not responsible for any device damage.
+Settings and cache live in KOReader’s settings directory, usually `/mnt/us/koreader/settings/`:
 
-## 📄 License
+- `kindledashboard.lua`: weather city, coordinates, timezone, and custom news URL.
+- `kindledashboard-cache.json`: the latest data snapshot, initially marked stale when reloaded after restart.
 
-This project is licensed under the MIT License. The license of FBInk is please refer to [FBInk](https://github.com/NiLuJe/FBInk).
+The refresh interval and three market symbols are currently defined in the plugin’s `market.lua` defaults; the settings dialog does not expose them.
+
+## Validation and troubleshooting
+
+After installation, confirm the menu entry appears, then check all four panels, city changes, manual and automatic refresh, cached data after disconnecting Wi-Fi, portrait/landscape rotation, and orientation restoration when returning to reading. With Moon, also check the desktop tab. Read source timestamps and stale indicators to distinguish cached observations from current data.
+
+Device checks include searching for “杭州”, selecting Hangzhou in Zhejiang, and tapping settings and return while a refresh is active. Settings dialogs appear above the dashboard. Cancelled refreshes repaint widgets before replaying button taps, preventing lost taps and touch-feedback errors.
+
+KUAL launch output is written to `/tmp/kindle-dashboard-launch.log`. For plugin loading or runtime errors, inspect KOReader’s `crash.log`. Public API availability, rate limits, and regional connectivity can affect refreshes.
+
+This project is licensed under the MIT License.
