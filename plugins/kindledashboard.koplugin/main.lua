@@ -3,6 +3,7 @@ local DataStorage = require("datastorage")
 local Device = require("device")
 local Dispatcher = require("dispatcher")
 local Event = require("ui/event")
+local Font = require("ui/font")
 local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
 local LuaSettings = require("luasettings")
@@ -12,6 +13,7 @@ local PluginShare = require("pluginshare")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
+local Screen = Device.screen
 local logger = require("logger")
 
 local plugin_dir = debug.getinfo(1, "S").source:match("^@(.+)/[^/]+$")
@@ -228,6 +230,10 @@ function KindleDashboard:showSettings()
     local dialog
     dialog = ButtonDialog:new{
         title = "仪表盘设置",
+        width_factor = 0.85,
+        use_info_style = false,
+        title_face = Font:getFace("x_smalltfont",
+            44 * math.min(Screen:getWidth(), Screen:getHeight()) / 1072 / (Screen:scaleBySize(100) / 100)),
         buttons = {
             {{text = "保持显示：" .. (self.keep_awake_state and "开启" or "关闭"), callback = function()
                 local enabled = self.keep_awake_state == nil
@@ -238,10 +244,10 @@ function KindleDashboard:showSettings()
                     self.settings:flush()
                     self:showSettings()
                 end
-            end}},
-            {{text = "前光亮度", enabled = Device:hasFrontlight(), callback = function()
+            end},
+            {text = "前光亮度", enabled = Device:hasFrontlight(), callback = function()
                 UIManager:close(dialog)
-                UIManager:show(require("ui/widget/frontlightwidget"):new{})
+                UIManager:show(dofile(plugin_dir .. "/frontlight.lua"):new{})
             end}},
             {{text = "天气城市：" .. self.config.weather.city_name, callback = function()
                 UIManager:close(dialog)
